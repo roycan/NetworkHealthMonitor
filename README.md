@@ -166,6 +166,9 @@ sudo chmod 644 /var/lib/network-monitor/network_monitor.db
 ## Service Setup
 Create and configure the systemd service with user-specific settings:
 ```bash
+# Find streamlit executable path
+STREAMLIT_PATH=$(python3 -m pip show streamlit | grep "Location" | cut -d " " -f 2)/streamlit/cli.py
+
 sudo tee /etc/systemd/system/network-monitor.service << EOF
 [Unit]
 Description=Network Monitoring Dashboard
@@ -183,7 +186,7 @@ WorkingDirectory=/path/to/network-monitoring-dashboard
 EnvironmentFile=/etc/default/network-monitor
 
 # Execution
-ExecStart=/usr/local/bin/streamlit run main.py --server.port=5000 --server.address=0.0.0.0
+ExecStart=/usr/bin/python3 $STREAMLIT_PATH run main.py --server.port=5000 --server.address=0.0.0.0
 
 # Security
 NoNewPrivileges=yes
@@ -262,4 +265,5 @@ top -p $(pgrep -f streamlit)
 ### Environment Issues
 - Check service environment: `sudo systemctl show network-monitor -p Environment`
 - Verify PATH: `sudo -u network-monitor echo $PATH`
-- Test streamlit access: `sudo -u network-monitor which streamlit`
+- Test streamlit access: `which streamlit`
+- Check streamlit installation: `python3 -m pip show streamlit`
