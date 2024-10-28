@@ -27,18 +27,20 @@ A comprehensive network monitoring dashboard built with Streamlit to track and v
 Update system and install required packages:
 ```bash
 sudo apt update
-sudo apt install -y python3 python3-pip sqlite3
+sudo apt install -y python3 python3-pip python3-venv sqlite3 build-essential python3-dev
 ```
 
 ### Python Setup
-Verify Python installation and update pip:
+Set up Python environment with proper permissions:
 ```bash
 # Verify Python installation
 python3 --version
-pip3 --version
 
-# Update pip
-pip3 install --upgrade pip
+# Update pip to latest version
+python3 -m pip install --upgrade pip --no-cache-dir
+
+# Configure pip to use system certificate store
+pip config set global.cert /etc/ssl/certs/ca-certificates.crt
 ```
 
 ### Project Setup
@@ -48,13 +50,32 @@ Clone and set up the project:
 git clone <repository-url>
 cd network-monitoring-dashboard
 
-# Install project dependencies
-pip3 install -r requirements.txt
+# Install project dependencies with recommended flags
+pip install --no-cache-dir -r requirements.txt --use-pep517 --no-warn-script-location
 
 # Create data directory
 mkdir -p /var/lib/network-monitor
 sudo chown ubuntu:ubuntu /var/lib/network-monitor
 ```
+
+### Managing pip Warnings
+Common pip warnings and their solutions:
+
+1. **DEPRECATION Warning**:
+   - Use `--use-pep517` flag during installation
+   - Keep pip updated using `python3 -m pip install --upgrade pip`
+
+2. **Script Location Warning**:
+   - Use `--no-warn-script-location` flag during installation
+   - Or add local bin directory to PATH: `export PATH="$HOME/.local/bin:$PATH"`
+
+3. **Cache Warnings**:
+   - Use `--no-cache-dir` flag to prevent cache-related issues
+   - Clear pip cache if needed: `pip cache purge`
+
+4. **SSL Certificate Warnings**:
+   - Configure pip to use system certificate store as shown in Python Setup
+   - Install required SSL certificates: `sudo apt install ca-certificates`
 
 ### Database Setup
 Initialize the SQLite database:
@@ -74,7 +95,8 @@ After=network.target
 [Service]
 User=ubuntu
 WorkingDirectory=/home/ubuntu/network-monitoring-dashboard
-Environment="PATH=/usr/local/bin:/usr/bin:/bin"
+Environment="PATH=/usr/local/bin:/usr/bin:/bin:/home/ubuntu/.local/bin"
+Environment="PYTHONPATH=/home/ubuntu/network-monitoring-dashboard"
 Environment="SQLITE_DB_PATH=/var/lib/network-monitor/network_monitor.db"
 ExecStart=/usr/local/bin/streamlit run main.py --server.port=5000 --server.address=0.0.0.0
 
@@ -87,8 +109,6 @@ sudo systemctl daemon-reload
 sudo systemctl enable network-monitor
 sudo systemctl start network-monitor
 ```
-
-**Note:** Adjust the WorkingDirectory path to match the location where you cloned the repository. If you cloned it to a different location or using a different user, modify the path accordingly.
 
 ## Firewall Configuration
 Configure the firewall to allow access to the dashboard:
@@ -136,4 +156,6 @@ top -p $(pgrep -f streamlit)
 - View logs: `sudo journalctl -u network-monitor -f`
 - Check database: `sqlite3 /var/lib/network-monitor/network_monitor.db ".tables"`
 - Check file permissions: `ls -l /var/lib/network-monitor/network_monitor.db`
+- Verify Python environment: `python3 -m pip list`
+- Clear pip cache: `pip cache purge`
 - Restart service: `sudo systemctl restart network-monitor`
