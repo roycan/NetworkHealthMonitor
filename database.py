@@ -31,7 +31,7 @@ class Database:
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
                     device_id INTEGER REFERENCES devices(id),
                     response_time FLOAT,
-                    status BOOLEAN,
+                    status INTEGER,
                     min_rtt FLOAT,
                     max_rtt FLOAT,
                     avg_rtt FLOAT,
@@ -55,7 +55,9 @@ class Database:
                 VALUES (?, ?, ?, ?, ?, ?, ?) 
                 """,
                 (ip_address, description, ','.join(tags), device_type,
-                response_time_threshold, packet_loss_threshold, jitter_threshold)
+                float(response_time_threshold) if response_time_threshold is not None else None,
+                float(packet_loss_threshold) if packet_loss_threshold is not None else None,
+                float(jitter_threshold) if jitter_threshold is not None else None)
             )
             return cursor.lastrowid
 
@@ -82,32 +84,34 @@ class Database:
                 WHERE id = ?
                 """,
                 (ip_address, description, ','.join(tags), device_type,
-                 response_time_threshold, packet_loss_threshold,
-                 jitter_threshold, device_id)
+                 float(response_time_threshold) if response_time_threshold is not None else None,
+                 float(packet_loss_threshold) if packet_loss_threshold is not None else None,
+                 float(jitter_threshold) if jitter_threshold is not None else None,
+                 int(device_id))
             )
 
     def delete_device(self, device_id):
         with self.conn:
-            self.conn.execute("DELETE FROM devices WHERE id = ?", (device_id,))
+            self.conn.execute("DELETE FROM devices WHERE id = ?", (int(device_id),))
 
     def add_monitoring_record(self, device_id, response_time, status, min_rtt=-1, max_rtt=-1, 
                             avg_rtt=-1, jitter=-1, packet_loss=100):
         # Check for threshold violations
         violations = []
-        cursor = self.conn.execute("SELECT * FROM devices WHERE id = ?", (device_id,))
+        cursor = self.conn.execute("SELECT * FROM devices WHERE id = ?", (int(device_id),))
         device = cursor.fetchone()
         
         if device:
             if (device['response_time_threshold'] is not None and 
-                response_time > device['response_time_threshold']):
+                float(response_time) > float(device['response_time_threshold'])):
                 violations.append('response_time')
             
             if (device['packet_loss_threshold'] is not None and 
-                packet_loss > device['packet_loss_threshold']):
+                float(packet_loss) > float(device['packet_loss_threshold'])):
                 violations.append('packet_loss')
             
             if (device['jitter_threshold'] is not None and 
-                jitter > device['jitter_threshold']):
+                float(jitter) > float(device['jitter_threshold'])):
                 violations.append('jitter')
 
         with self.conn:
@@ -118,20 +122,25 @@ class Database:
                 avg_rtt, jitter, packet_loss, threshold_violations)
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
-                (device_id, response_time, status, min_rtt, max_rtt, 
-                avg_rtt, jitter, packet_loss, ','.join(violations) if violations else None)
+                (int(device_id), float(response_time), 1 if status else 0,
+                float(min_rtt), float(max_rtt), float(avg_rtt),
+                float(jitter), float(packet_loss),
+                ','.join(violations) if violations else None)
             )
 
     def get_device_history(self, device_id, limit=100):
-        cursor = self.conn.execute(
-            """
+        query = """
             SELECT * FROM monitoring_history 
             WHERE device_id = ? 
-            ORDER BY timestamp DESC 
-            LIMIT ?
-            """,
-            (device_id, limit)
-        )
+            ORDER BY timestamp DESC
+        """
+        params = [int(device_id)]
+        
+        if limit is not None:
+            query += " LIMIT ?"
+            params.append(int(limit))
+            
+        cursor = self.conn.execute(query, params)
         history = []
         for row in cursor:
             record = dict(row)
@@ -140,6 +149,11 @@ class Database:
                 record['threshold_violations'].split(',') 
                 if record['threshold_violations'] else []
             )
+            # Convert status to boolean
+            record['status'] = bool(record['status'])
+            # Ensure numeric fields are float
+            for field in ['response_time', 'min_rtt', 'max_rtt', 'avg_rtt', 'jitter', 'packet_loss']:
+                record[field] = float(record[field])
             history.append(record)
         return history
 
@@ -159,6 +173,6 @@ class Database:
             GROUP BY time_bucket
             ORDER BY time_bucket DESC
             """,
-            (device_id, f'-{hours} hours')
+            (int(device_id), f'-{int(hours)} hours')
         )
         return [dict(row) for row in cursor]
