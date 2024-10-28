@@ -27,18 +27,17 @@ def render_deployment_instructions():
     st.markdown("""
     - Ubuntu Linux 20.04 LTS or newer
     - Python 3.10 or newer
-    - PostgreSQL 12 or newer
+    - SQLite3 (usually pre-installed on Ubuntu)
     - 2GB RAM minimum
     - 10GB free disk space
     """)
     
-    # Rest of the deployment instructions...
     # Installation Process
     st.subheader("2. Step-by-Step Installation Process")
     st.markdown("#### Installing Required System Packages")
     st.code("""
 sudo apt update
-sudo apt install -y python3 python3-pip postgresql postgresql-contrib
+sudo apt install -y python3 python3-pip sqlite3
     """)
     
     st.markdown("#### Setting up Python and pip")
@@ -59,25 +58,16 @@ cd network-monitoring-dashboard
 
 # Install project dependencies
 pip3 install -r requirements.txt
+
+# Create data directory
+mkdir -p /var/lib/network-monitor
+sudo chown ubuntu:ubuntu /var/lib/network-monitor
     """)
     
-    st.markdown("#### Configuring PostgreSQL Database")
+    st.markdown("#### Database Setup")
     st.code("""
-# Create database and user
-sudo -u postgres psql
-
-CREATE DATABASE network_monitor;
-CREATE USER monitor_user WITH PASSWORD 'your_password';
-GRANT ALL PRIVILEGES ON DATABASE network_monitor TO monitor_user;
-\\q
-
-# Set environment variables
-echo 'export PGDATABASE=network_monitor' >> ~/.bashrc
-echo 'export PGUSER=monitor_user' >> ~/.bashrc
-echo 'export PGPASSWORD=your_password' >> ~/.bashrc
-echo 'export PGHOST=localhost' >> ~/.bashrc
-echo 'export PGPORT=5432' >> ~/.bashrc
-source ~/.bashrc
+# Initialize SQLite database
+sqlite3 /var/lib/network-monitor/network_monitor.db ".databases"
     """)
     
     st.subheader("3. Service Setup")
@@ -92,11 +82,7 @@ After=network.target
 User=ubuntu
 WorkingDirectory=/path/to/network-monitoring-dashboard
 Environment="PATH=/usr/local/bin:/usr/bin:/bin"
-Environment="PGDATABASE=network_monitor"
-Environment="PGUSER=monitor_user"
-Environment="PGPASSWORD=your_password"
-Environment="PGHOST=localhost"
-Environment="PGPORT=5432"
+Environment="SQLITE_DB_PATH=/var/lib/network-monitor/network_monitor.db"
 ExecStart=/usr/local/bin/streamlit run main.py --server.port=5000 --server.address=0.0.0.0
 
 [Install]
@@ -134,10 +120,13 @@ sudo ufw status
        - Open a web browser and navigate to: `http://your_server_ip:5000`
        - Verify that you can see the dashboard and all metrics
     
-    4. **Test Database Connection:**
+    4. **Test Database:**
        ```bash
-       # Check if database is accepting connections
-       psql -h localhost -U monitor_user -d network_monitor -c "SELECT 1;"
+       # Check if database exists and tables are created
+       sqlite3 /var/lib/network-monitor/network_monitor.db ".tables"
+       
+       # Check device table
+       sqlite3 /var/lib/network-monitor/network_monitor.db "SELECT * FROM devices;"
        ```
     
     5. **Monitor Resource Usage:**
@@ -151,8 +140,8 @@ sudo ufw status
     st.markdown("""
     - Check service status: `sudo systemctl status network-monitor`
     - View logs: `sudo journalctl -u network-monitor -f`
-    - Verify database connection: `psql -h localhost -U monitor_user -d network_monitor`
-    - Check firewall rules: `sudo ufw status`
+    - Check database: `sqlite3 /var/lib/network-monitor/network_monitor.db ".tables"`
+    - Check file permissions: `ls -l /var/lib/network-monitor/network_monitor.db`
     - Restart service: `sudo systemctl restart network-monitor`
     """)
 
