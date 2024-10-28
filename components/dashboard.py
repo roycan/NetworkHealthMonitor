@@ -4,6 +4,19 @@ from components.charts import (
     create_response_time_chart, create_status_chart,
     create_detailed_metrics_chart, create_trend_chart
 )
+from components.export import export_device_data_csv, export_device_report_pdf
+import base64
+
+def get_download_link(data, filename, text):
+    """Generate a download link for the data"""
+    if isinstance(data, str):
+        # For CSV (string data)
+        b64 = base64.b64encode(data.encode()).decode()
+    else:
+        # For PDF (binary data)
+        b64 = base64.b64encode(data).decode()
+    href = f'<a href="data:file/csv;base64,{b64}" download="{filename}">{text}</a>'
+    return href
 
 def render_dashboard(database, monitor):
     st.title("Network Monitoring Dashboard")
@@ -46,6 +59,25 @@ def render_dashboard(database, monitor):
         with st.expander(f"Details: {device['ip_address']} - {device['description']} ({device['device_type']})"):
             history = database.get_device_history(device['id'], limit=100)
             trends = database.get_device_trends(device['id'], hours=trend_hours)
+            
+            # Add export buttons in a row
+            col1, col2, _ = st.columns([1, 1, 2])
+            
+            # Export CSV button
+            with col1:
+                if st.button(f"Export CSV 📊", key=f"csv_{device['id']}"):
+                    csv_data = export_device_data_csv(database, device['id'], hours=trend_hours)
+                    if csv_data:
+                        filename = f"network_monitoring_{device['ip_address']}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv"
+                        st.markdown(get_download_link(csv_data, filename, "Download CSV"), unsafe_allow_html=True)
+            
+            # Export PDF button
+            with col2:
+                if st.button(f"Export PDF 📑", key=f"pdf_{device['id']}"):
+                    pdf_data = export_device_report_pdf(database, device['id'], hours=trend_hours)
+                    if pdf_data:
+                        filename = f"network_monitoring_{device['ip_address']}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf"
+                        st.markdown(get_download_link(pdf_data, filename, "Download PDF"), unsafe_allow_html=True)
             
             # Device info
             st.markdown(f"**Tags:** {', '.join(device['tags'] if device['tags'] else [])}")
