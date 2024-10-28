@@ -9,6 +9,7 @@ A comprehensive network monitoring dashboard built with Streamlit to track and v
   - [Python Setup](#python-setup)
   - [Project Setup](#project-setup)
   - [Database Setup](#database-setup)
+- [PATH Configuration](#path-configuration)
 - [Service Setup](#service-setup)
 - [Firewall Configuration](#firewall-configuration)
 - [Testing Instructions](#testing-instructions)
@@ -76,6 +77,53 @@ Common pip warnings and their solutions:
 4. **SSL Certificate Warnings**:
    - Configure pip to use system certificate store as shown in Python Setup
    - Install required SSL certificates: `sudo apt install ca-certificates`
+
+## PATH Configuration
+To ensure pip-installed scripts are accessible system-wide, you need to properly configure your PATH. Here are detailed instructions:
+
+### 1. User-Level PATH Configuration
+Add the following to your `~/.bashrc` or `~/.profile`:
+```bash
+# Add local bin directory to PATH for pip-installed scripts
+export PATH="$HOME/.local/bin:$PATH"
+
+# Ensure proper Python path
+export PYTHONPATH="/home/ubuntu/network-monitoring-dashboard:$PYTHONPATH"
+```
+
+After adding these lines:
+```bash
+# Apply changes immediately
+source ~/.bashrc  # or source ~/.profile
+```
+
+### 2. System-Level PATH Configuration
+For system-wide access, you can configure PATH in `/etc/environment`:
+```bash
+sudo tee -a /etc/environment << EOF
+PATH="/usr/local/bin:/usr/bin:/bin:/home/ubuntu/.local/bin"
+EOF
+```
+
+### 3. Service Configuration
+The systemd service file should include the correct PATH configuration:
+```bash
+Environment="PATH=/usr/local/bin:/usr/bin:/bin:/home/ubuntu/.local/bin"
+Environment="PYTHONPATH=/home/ubuntu/network-monitoring-dashboard"
+```
+
+### 4. Verifying PATH Configuration
+To verify your PATH configuration:
+```bash
+# Check current PATH
+echo $PATH
+
+# Verify script accessibility
+which streamlit
+
+# Test streamlit command
+streamlit --version
+```
 
 ### Database Setup
 Initialize the SQLite database:
@@ -159,3 +207,6 @@ top -p $(pgrep -f streamlit)
 - Verify Python environment: `python3 -m pip list`
 - Clear pip cache: `pip cache purge`
 - Restart service: `sudo systemctl restart network-monitor`
+- Check PATH configuration: `echo $PATH`
+- Verify streamlit installation: `which streamlit`
+- Test script accessibility: `streamlit --version`
