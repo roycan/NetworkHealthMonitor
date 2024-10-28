@@ -9,6 +9,10 @@ A comprehensive network monitoring dashboard built with Streamlit to track and v
   - [Python Setup](#python-setup)
   - [Project Setup](#project-setup)
   - [Database Setup](#database-setup)
+- [User Account Configuration](#user-account-configuration)
+  - [Installation User Types](#installation-user-types)
+  - [Permission Management](#permission-management)
+  - [Environment Setup](#environment-setup)
 - [PATH Configuration](#path-configuration)
 - [Service Setup](#service-setup)
 - [Firewall Configuration](#firewall-configuration)
@@ -54,86 +58,113 @@ cd network-monitoring-dashboard
 # Install project dependencies with recommended flags
 pip install --no-cache-dir -r requirements.txt --use-pep517 --no-warn-script-location
 
-# Create data directory
-mkdir -p /var/lib/network-monitor
-sudo chown ubuntu:ubuntu /var/lib/network-monitor
+# Create data directory (will be customized based on user type)
+sudo mkdir -p /var/lib/network-monitor
 ```
 
-### Managing pip Warnings
-Common pip warnings and their solutions:
+## User Account Configuration
 
-1. **DEPRECATION Warning**:
-   - Use `--use-pep517` flag during installation
-   - Keep pip updated using `python3 -m pip install --upgrade pip`
+### Installation User Types
 
-2. **Script Location Warning**:
-   - Use `--no-warn-script-location` flag during installation
-   - Or add local bin directory to PATH: `export PATH="$HOME/.local/bin:$PATH"`
-
-3. **Cache Warnings**:
-   - Use `--no-cache-dir` flag to prevent cache-related issues
-   - Clear pip cache if needed: `pip cache purge`
-
-4. **SSL Certificate Warnings**:
-   - Configure pip to use system certificate store as shown in Python Setup
-   - Install required SSL certificates: `sudo apt install ca-certificates`
-
-## PATH Configuration
-To ensure pip-installed scripts are accessible system-wide, you need to properly configure your PATH. Here are detailed instructions:
-
-### 1. User-Level PATH Configuration
-Add the following to your `~/.bashrc` or `~/.profile`:
+#### 1. Root User
+Not recommended for security reasons. If you must use root:
 ```bash
-# Add local bin directory to PATH for pip-installed scripts
-export PATH="$HOME/.local/bin:$PATH"
-
-# Ensure proper Python path
-export PYTHONPATH="/home/ubuntu/network-monitoring-dashboard:$PYTHONPATH"
+# Set proper ownership and permissions
+chown root:root /var/lib/network-monitor
+chmod 755 /var/lib/network-monitor
 ```
 
-After adding these lines:
+#### 2. System Service User (Recommended)
+Create a dedicated service user:
 ```bash
-# Apply changes immediately
-source ~/.bashrc  # or source ~/.profile
+# Create service user
+sudo useradd -r -s /bin/false network-monitor
+
+# Set ownership
+sudo chown network-monitor:network-monitor /var/lib/network-monitor
+sudo chown -R network-monitor:network-monitor /path/to/network-monitoring-dashboard
+
+# Set permissions
+sudo chmod 755 /var/lib/network-monitor
 ```
 
-### 2. System-Level PATH Configuration
-For system-wide access, you can configure PATH in `/etc/environment`:
+#### 3. Regular User
+For installation under a regular user account:
 ```bash
-sudo tee -a /etc/environment << EOF
-PATH="/usr/local/bin:/usr/bin:/bin:/home/ubuntu/.local/bin"
+# Set ownership
+sudo chown $USER:$USER /var/lib/network-monitor
+sudo chown -R $USER:$USER /path/to/network-monitoring-dashboard
+
+# Set permissions
+sudo chmod 755 /var/lib/network-monitor
+```
+
+### Permission Management
+
+#### Directory Structure Permissions
+```bash
+# Application directory
+sudo chmod -R 755 /path/to/network-monitoring-dashboard
+
+# Data directory
+sudo chmod 755 /var/lib/network-monitor
+
+# Database file
+sudo chmod 644 /var/lib/network-monitor/network_monitor.db
+
+# Log directory
+sudo mkdir -p /var/log/network-monitor
+sudo chown $SERVICE_USER:$SERVICE_USER /var/log/network-monitor
+sudo chmod 755 /var/log/network-monitor
+```
+
+#### Configuration Files
+```bash
+# Service configuration
+sudo chmod 644 /etc/systemd/system/network-monitor.service
+
+# Application configuration
+sudo chmod 644 /path/to/network-monitoring-dashboard/.streamlit/config.toml
+```
+
+### Environment Setup
+
+#### 1. System Service User
+Create environment file:
+```bash
+sudo tee /etc/default/network-monitor << EOF
+# Application Environment
+PYTHONPATH=/path/to/network-monitoring-dashboard
+SQLITE_DB_PATH=/var/lib/network-monitor/network_monitor.db
+PATH=/usr/local/bin:/usr/bin:/bin:/usr/local/sbin:/usr/sbin:/sbin
+
+# User-specific settings
+HOME=/home/network-monitor
+USER=network-monitor
 EOF
 ```
 
-### 3. Service Configuration
-The systemd service file should include the correct PATH configuration:
+#### 2. Regular User
+Add to user's profile (~/.profile or ~/.bashrc):
 ```bash
-Environment="PATH=/usr/local/bin:/usr/bin:/bin:/home/ubuntu/.local/bin"
-Environment="PYTHONPATH=/home/ubuntu/network-monitoring-dashboard"
-```
-
-### 4. Verifying PATH Configuration
-To verify your PATH configuration:
-```bash
-# Check current PATH
-echo $PATH
-
-# Verify script accessibility
-which streamlit
-
-# Test streamlit command
-streamlit --version
+# Application Environment
+export PYTHONPATH=/path/to/network-monitoring-dashboard
+export SQLITE_DB_PATH=/var/lib/network-monitor/network_monitor.db
 ```
 
 ### Database Setup
-Initialize the SQLite database:
+Initialize the SQLite database with proper permissions:
 ```bash
-# Initialize SQLite database
+# Create database
 sqlite3 /var/lib/network-monitor/network_monitor.db ".databases"
+
+# Set ownership and permissions
+sudo chown $SERVICE_USER:$SERVICE_USER /var/lib/network-monitor/network_monitor.db
+sudo chmod 644 /var/lib/network-monitor/network_monitor.db
 ```
 
 ## Service Setup
-Create and configure the systemd service:
+Create and configure the systemd service with user-specific settings:
 ```bash
 sudo tee /etc/systemd/system/network-monitor.service << EOF
 [Unit]
@@ -141,12 +172,24 @@ Description=Network Monitoring Dashboard
 After=network.target
 
 [Service]
-User=ubuntu
-WorkingDirectory=/home/ubuntu/network-monitoring-dashboard
-Environment="PATH=/usr/local/bin:/usr/bin:/bin:/home/ubuntu/.local/bin"
-Environment="PYTHONPATH=/home/ubuntu/network-monitoring-dashboard"
-Environment="SQLITE_DB_PATH=/var/lib/network-monitor/network_monitor.db"
+# User Configuration
+User=network-monitor
+Group=network-monitor
+
+# Directory Configuration
+WorkingDirectory=/path/to/network-monitoring-dashboard
+
+# Environment Configuration
+EnvironmentFile=/etc/default/network-monitor
+
+# Execution
 ExecStart=/usr/local/bin/streamlit run main.py --server.port=5000 --server.address=0.0.0.0
+
+# Security
+NoNewPrivileges=yes
+ProtectSystem=full
+ProtectHome=read-only
+PrivateTmp=yes
 
 [Install]
 WantedBy=multi-user.target
@@ -187,10 +230,10 @@ sudo journalctl -u network-monitor -f
 ### 4. Test Database
 ```bash
 # Check if database exists and tables are created
-sqlite3 /var/lib/network-monitor/network_monitor.db ".tables"
+sudo -u network-monitor sqlite3 /var/lib/network-monitor/network_monitor.db ".tables"
 
 # Check device table
-sqlite3 /var/lib/network-monitor/network_monitor.db "SELECT * FROM devices;"
+sudo -u network-monitor sqlite3 /var/lib/network-monitor/network_monitor.db "SELECT * FROM devices;"
 ```
 
 ### 5. Monitor Resource Usage
@@ -200,13 +243,23 @@ top -p $(pgrep -f streamlit)
 ```
 
 ## Troubleshooting
+
+### Service Issues
 - Check service status: `sudo systemctl status network-monitor`
 - View logs: `sudo journalctl -u network-monitor -f`
-- Check database: `sqlite3 /var/lib/network-monitor/network_monitor.db ".tables"`
-- Check file permissions: `ls -l /var/lib/network-monitor/network_monitor.db`
-- Verify Python environment: `python3 -m pip list`
-- Clear pip cache: `pip cache purge`
-- Restart service: `sudo systemctl restart network-monitor`
-- Check PATH configuration: `echo $PATH`
-- Verify streamlit installation: `which streamlit`
-- Test script accessibility: `streamlit --version`
+- Verify service user: `ps -ef | grep streamlit`
+
+### Permission Issues
+- Check file ownership: `ls -l /var/lib/network-monitor/network_monitor.db`
+- Check directory permissions: `ls -ld /var/lib/network-monitor`
+- Verify user access: `sudo -u network-monitor ls -l /var/lib/network-monitor`
+
+### Database Issues
+- Check database permissions: `ls -l /var/lib/network-monitor/network_monitor.db`
+- Verify database access: `sudo -u network-monitor sqlite3 /var/lib/network-monitor/network_monitor.db ".tables"`
+- Check write permissions: `sudo -u network-monitor touch /var/lib/network-monitor/test`
+
+### Environment Issues
+- Check service environment: `sudo systemctl show network-monitor -p Environment`
+- Verify PATH: `sudo -u network-monitor echo $PATH`
+- Test streamlit access: `sudo -u network-monitor which streamlit`
