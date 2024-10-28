@@ -32,17 +32,15 @@ def render_deployment_instructions():
     - 10GB free disk space
     """)
     
+    # Rest of the deployment instructions...
     # Installation Process
     st.subheader("2. Step-by-Step Installation Process")
-    
-    # System Packages
     st.markdown("#### Installing Required System Packages")
     st.code("""
 sudo apt update
 sudo apt install -y python3 python3-pip postgresql postgresql-contrib
     """)
     
-    # Python and pip
     st.markdown("#### Setting up Python and pip")
     st.code("""
 # Verify Python installation
@@ -53,7 +51,6 @@ pip3 --version
 pip3 install --upgrade pip
     """)
     
-    # Project Setup
     st.markdown("#### Project Setup")
     st.code("""
 # Clone the project
@@ -64,7 +61,6 @@ cd network-monitoring-dashboard
 pip3 install -r requirements.txt
     """)
     
-    # Database Configuration
     st.markdown("#### Configuring PostgreSQL Database")
     st.code("""
 # Create database and user
@@ -84,7 +80,6 @@ echo 'export PGPORT=5432' >> ~/.bashrc
 source ~/.bashrc
     """)
     
-    # Service Setup
     st.subheader("3. Service Setup")
     st.markdown("#### Creating systemd Service")
     st.code("""
@@ -114,7 +109,6 @@ sudo systemctl enable network-monitor
 sudo systemctl start network-monitor
     """)
     
-    # Firewall Configuration
     st.subheader("4. Firewall Configuration")
     st.code("""
 # Allow Streamlit port
@@ -124,7 +118,6 @@ sudo ufw allow 5000/tcp
 sudo ufw status
     """)
     
-    # Testing Instructions
     st.subheader("5. Testing Instructions")
     st.markdown("""
     1. **Verify Service Status:**
@@ -154,7 +147,6 @@ sudo ufw status
        ```
     """)
     
-    # Troubleshooting
     st.subheader("6. Troubleshooting")
     st.markdown("""
     - Check service status: `sudo systemctl status network-monitor`
@@ -204,9 +196,10 @@ def render_dashboard(database, monitor):
                 uptime = calculate_uptime(history)
                 st.progress(uptime/100, f"Uptime: {uptime:.1f}%")
 
-        # Detailed device views
+        # Detailed device sections
         for device in devices:
-            with st.expander(f"Details: {device['ip_address']} - {device['description']} ({device['device_type']})"):
+            st.markdown(f"### Device Details: {device['ip_address']} - {device['description']} ({device['device_type']})")
+            with st.container():
                 try:
                     history = database.get_device_history(device['id'], limit=100)
                     trends = database.get_device_trends(device['id'], hours=trend_hours)
@@ -284,21 +277,23 @@ def render_dashboard(database, monitor):
                             )
                     
                     # Charts
-                    tab1, tab2 = st.tabs(["Real-time Metrics", "Trend Analysis"])
+                    chart_tabs = st.tabs(["Real-time Metrics", "Trend Analysis"])
                     
-                    with tab1:
+                    with chart_tabs[0]:
                         st.plotly_chart(
                             create_detailed_metrics_chart(history, device),
                             use_container_width=True
                         )
                     
-                    with tab2:
+                    with chart_tabs[1]:
                         st.plotly_chart(
                             create_trend_chart(trends),
                             use_container_width=True
                         )
                 except Exception as e:
                     st.error(f"Error loading device details: {str(e)}")
+            
+            st.markdown("---")  # Add separator between devices
 
     with tab2:
         from components.device_manager import render_device_manager

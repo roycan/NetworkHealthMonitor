@@ -14,62 +14,65 @@ def render_device_manager(database):
         "Other"
     ]
     
-    # Add new device form
-    with st.expander("Add New Device"):
-        with st.form("add_device"):
-            col1, col2 = st.columns(2)
-            
-            with col1:
-                ip_address = st.text_input("IP Address")
-                description = st.text_input("Description")
-                tags = st.text_input("Tags (comma-separated)")
-                device_type = st.selectbox("Device Type", [""] + DEVICE_TYPES)
-            
-            with col2:
-                st.subheader("Performance Thresholds")
-                response_time = st.number_input(
-                    "Response Time Threshold (seconds)",
-                    min_value=0.0,
-                    value=1.0,
-                    step=0.1,
-                    help="Maximum acceptable response time"
+    # Add new device section
+    st.subheader("Add New Device")
+    
+    with st.form("add_device"):
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            ip_address = st.text_input("IP Address")
+            description = st.text_input("Description")
+            tags = st.text_input("Tags (comma-separated)")
+            device_type = st.selectbox("Device Type", [""] + DEVICE_TYPES)
+        
+        with col2:
+            st.subheader("Performance Thresholds")
+            response_time = st.number_input(
+                "Response Time Threshold (seconds)",
+                min_value=0.0,
+                value=1.0,
+                step=0.1,
+                help="Maximum acceptable response time"
+            )
+            packet_loss = st.number_input(
+                "Packet Loss Threshold (%)",
+                min_value=0.0,
+                max_value=100.0,
+                value=5.0,
+                step=1.0,
+                help="Maximum acceptable packet loss percentage"
+            )
+            jitter = st.number_input(
+                "Jitter Threshold (seconds)",
+                min_value=0.0,
+                value=0.1,
+                step=0.01,
+                help="Maximum acceptable jitter"
+            )
+        
+        submitted = st.form_submit_button("Add Device")
+        if submitted:
+            if not validate_ip(ip_address):
+                st.error("Invalid IP address format")
+            elif not device_type:
+                st.error("Please select a device type")
+            else:
+                tag_list = [tag.strip() for tag in tags.split(",") if tag.strip()]
+                database.add_device(
+                    ip_address, description, tag_list, device_type,
+                    response_time, packet_loss, jitter
                 )
-                packet_loss = st.number_input(
-                    "Packet Loss Threshold (%)",
-                    min_value=0.0,
-                    max_value=100.0,
-                    value=5.0,
-                    step=1.0,
-                    help="Maximum acceptable packet loss percentage"
-                )
-                jitter = st.number_input(
-                    "Jitter Threshold (seconds)",
-                    min_value=0.0,
-                    value=0.1,
-                    step=0.01,
-                    help="Maximum acceptable jitter"
-                )
-            
-            submitted = st.form_submit_button("Add Device")
-            if submitted:
-                if not validate_ip(ip_address):
-                    st.error("Invalid IP address format")
-                elif not device_type:
-                    st.error("Please select a device type")
-                else:
-                    tag_list = [tag.strip() for tag in tags.split(",") if tag.strip()]
-                    database.add_device(
-                        ip_address, description, tag_list, device_type,
-                        response_time, packet_loss, jitter
-                    )
-                    st.success("Device added successfully!")
+                st.success("Device added successfully!")
+                st.rerun()
 
     # List and manage existing devices
     st.subheader("Existing Devices")
     devices = database.get_devices()
     
     for device in devices:
-        with st.expander(f"{device['ip_address']} - {device['description']}"):
+        st.markdown(f"### {device['ip_address']} - {device['description']}")
+        with st.container():
             with st.form(f"edit_device_{device['id']}"):
                 col1, col2 = st.columns(2)
                 
@@ -133,3 +136,5 @@ def render_device_manager(database):
                         database.delete_device(device['id'])
                         st.success("Device deleted successfully!")
                         st.rerun()
+        
+        st.markdown("---")  # Add separator between devices
