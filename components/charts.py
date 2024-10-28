@@ -56,3 +56,117 @@ def create_status_chart(history):
     )
     
     return fig
+
+def create_detailed_metrics_chart(history):
+    times = [record['timestamp'] for record in history]
+    
+    fig = make_subplots(
+        rows=2, cols=2,
+        subplot_titles=(
+            'RTT Metrics', 'Jitter',
+            'Packet Loss', 'Moving Averages'
+        )
+    )
+    
+    # RTT Metrics
+    fig.add_trace(
+        go.Scatter(x=times, y=[r['min_rtt'] if r['min_rtt'] >= 0 else None for r in history],
+                  name='Min RTT', line=dict(color='#2ECC71')),
+        row=1, col=1
+    )
+    fig.add_trace(
+        go.Scatter(x=times, y=[r['max_rtt'] if r['max_rtt'] >= 0 else None for r in history],
+                  name='Max RTT', line=dict(color='#E74C3C')),
+        row=1, col=1
+    )
+    fig.add_trace(
+        go.Scatter(x=times, y=[r['avg_rtt'] if r['avg_rtt'] >= 0 else None for r in history],
+                  name='Avg RTT', line=dict(color='#3498DB')),
+        row=1, col=1
+    )
+    
+    # Jitter
+    fig.add_trace(
+        go.Scatter(x=times, y=[r['jitter'] if r['jitter'] >= 0 else None for r in history],
+                  name='Jitter', line=dict(color='#9B59B6')),
+        row=1, col=2
+    )
+    
+    # Packet Loss
+    fig.add_trace(
+        go.Scatter(x=times, y=[r['packet_loss'] for r in history],
+                  name='Packet Loss %', line=dict(color='#E67E22')),
+        row=2, col=1
+    )
+    
+    # Moving Averages
+    response_times = [r['response_time'] if r['response_time'] >= 0 else None for r in history]
+    window = 5
+    ma = []
+    for i in range(len(response_times)):
+        window_slice = [x for x in response_times[max(0, i-window+1):i+1] if x is not None]
+        if window_slice:
+            ma.append(sum(window_slice) / len(window_slice))
+        else:
+            ma.append(None)
+    
+    fig.add_trace(
+        go.Scatter(x=times, y=ma,
+                  name=f'{window}-point MA', line=dict(color='#F1C40F')),
+        row=2, col=2
+    )
+    
+    fig.update_layout(
+        height=600,
+        showlegend=True,
+        margin=dict(l=0, r=0, t=30, b=0)
+    )
+    
+    return fig
+
+def create_trend_chart(trends):
+    times = [record['time_bucket'] for record in trends]
+    
+    fig = make_subplots(
+        rows=2, cols=2,
+        subplot_titles=(
+            'Average Response Time', 'Average Packet Loss',
+            'Average Jitter', 'Availability'
+        )
+    )
+    
+    # Average Response Time
+    fig.add_trace(
+        go.Scatter(x=times, y=[r['avg_response_time'] for r in trends],
+                  name='Avg Response Time', line=dict(color='#3498DB')),
+        row=1, col=1
+    )
+    
+    # Average Packet Loss
+    fig.add_trace(
+        go.Scatter(x=times, y=[r['avg_packet_loss'] for r in trends],
+                  name='Avg Packet Loss', line=dict(color='#E67E22')),
+        row=1, col=2
+    )
+    
+    # Average Jitter
+    fig.add_trace(
+        go.Scatter(x=times, y=[r['avg_jitter'] for r in trends],
+                  name='Avg Jitter', line=dict(color='#9B59B6')),
+        row=2, col=1
+    )
+    
+    # Availability
+    fig.add_trace(
+        go.Scatter(x=times, y=[r['availability'] for r in trends],
+                  name='Availability %', line=dict(color='#2ECC71')),
+        row=2, col=2
+    )
+    
+    fig.update_layout(
+        height=600,
+        showlegend=True,
+        margin=dict(l=0, r=0, t=30, b=0)
+    )
+    
+    return fig

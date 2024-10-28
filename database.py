@@ -27,13 +27,18 @@ class Database:
                 )
             ''')
             
-            # Monitoring history table
+            # Monitoring history table with additional metrics
             cur.execute('''
                 CREATE TABLE IF NOT EXISTS monitoring_history (
                     id SERIAL PRIMARY KEY,
                     device_id INTEGER REFERENCES devices(id),
                     response_time FLOAT,
                     status BOOLEAN,
+                    min_rtt FLOAT,
+                    max_rtt FLOAT,
+                    avg_rtt FLOAT,
+                    jitter FLOAT,
+                    packet_loss FLOAT,
                     timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP
                 )
             ''')
@@ -67,11 +72,16 @@ class Database:
             cur.execute("DELETE FROM devices WHERE id = %s", (device_id,))
         self.conn.commit()
 
-    def add_monitoring_record(self, device_id, response_time, status):
+    def add_monitoring_record(self, device_id, response_time, status, min_rtt=-1, max_rtt=-1, 
+                            avg_rtt=-1, jitter=-1, packet_loss=100):
         with self.conn.cursor() as cur:
             cur.execute(
-                "INSERT INTO monitoring_history (device_id, response_time, status) VALUES (%s, %s, %s)",
-                (device_id, response_time, status)
+                """
+                INSERT INTO monitoring_history 
+                (device_id, response_time, status, min_rtt, max_rtt, avg_rtt, jitter, packet_loss)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+                """,
+                (device_id, response_time, status, min_rtt, max_rtt, avg_rtt, jitter, packet_loss)
             )
         self.conn.commit()
 
@@ -85,5 +95,25 @@ class Database:
                 LIMIT %s
                 """,
                 (device_id, limit)
+            )
+            return cur.fetchall()
+
+    def get_device_trends(self, device_id, hours=24):
+        with self.conn.cursor(cursor_factory=RealDictCursor) as cur:
+            cur.execute(
+                """
+                SELECT 
+                    date_trunc('hour', timestamp) as time_bucket,
+                    AVG(response_time) as avg_response_time,
+                    AVG(packet_loss) as avg_packet_loss,
+                    AVG(jitter) as avg_jitter,
+                    COUNT(*) FILTER (WHERE status = true)::float / COUNT(*)::float * 100 as availability
+                FROM monitoring_history 
+                WHERE device_id = %s 
+                AND timestamp >= NOW() - interval %s hour
+                GROUP BY time_bucket
+                ORDER BY time_bucket DESC
+                """,
+                (device_id, hours)
             )
             return cur.fetchall()
