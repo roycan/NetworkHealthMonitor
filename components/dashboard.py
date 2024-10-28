@@ -80,7 +80,7 @@ After=network.target
 
 [Service]
 User=ubuntu
-WorkingDirectory=/path/to/network-monitoring-dashboard
+WorkingDirectory=/home/ubuntu/network-monitoring-dashboard
 Environment="PATH=/usr/local/bin:/usr/bin:/bin"
 Environment="SQLITE_DB_PATH=/var/lib/network-monitor/network_monitor.db"
 ExecStart=/usr/local/bin/streamlit run main.py --server.port=5000 --server.address=0.0.0.0
@@ -93,6 +93,11 @@ EOF
 sudo systemctl daemon-reload
 sudo systemctl enable network-monitor
 sudo systemctl start network-monitor
+    """)
+
+    st.markdown("""
+    **Note:** Adjust the WorkingDirectory path to match the location where you cloned the repository. 
+    If you cloned it to a different location or using a different user, modify the path accordingly.
     """)
     
     st.subheader("4. Firewall Configuration")
