@@ -57,7 +57,7 @@ def create_status_chart(history):
     
     return fig
 
-def create_detailed_metrics_chart(history):
+def create_detailed_metrics_chart(history, device):
     times = [record['timestamp'] for record in history]
     
     fig = make_subplots(
@@ -85,6 +85,16 @@ def create_detailed_metrics_chart(history):
         row=1, col=1
     )
     
+    # Add response time threshold line if set
+    if device['response_time_threshold']:
+        fig.add_hline(
+            y=device['response_time_threshold'],
+            line_dash="dash",
+            line_color="red",
+            annotation_text="Threshold",
+            row=1, col=1
+        )
+    
     # Jitter
     fig.add_trace(
         go.Scatter(x=times, y=[r['jitter'] if r['jitter'] >= 0 else None for r in history],
@@ -92,12 +102,32 @@ def create_detailed_metrics_chart(history):
         row=1, col=2
     )
     
+    # Add jitter threshold line if set
+    if device['jitter_threshold']:
+        fig.add_hline(
+            y=device['jitter_threshold'],
+            line_dash="dash",
+            line_color="red",
+            annotation_text="Threshold",
+            row=1, col=2
+        )
+    
     # Packet Loss
     fig.add_trace(
         go.Scatter(x=times, y=[r['packet_loss'] for r in history],
                   name='Packet Loss %', line=dict(color='#E67E22')),
         row=2, col=1
     )
+    
+    # Add packet loss threshold line if set
+    if device['packet_loss_threshold']:
+        fig.add_hline(
+            y=device['packet_loss_threshold'],
+            line_dash="dash",
+            line_color="red",
+            annotation_text="Threshold",
+            row=2, col=1
+        )
     
     # Moving Averages
     response_times = [r['response_time'] if r['response_time'] >= 0 else None for r in history]
