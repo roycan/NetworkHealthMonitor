@@ -12,3 +12,4 @@ pandas>=2.1.0
 
 # Report Generation
 reportlab>=4.0.0
+pytz

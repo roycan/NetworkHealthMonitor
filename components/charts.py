@@ -1,9 +1,25 @@
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 from datetime import datetime, timedelta
+import pytz
+
+def get_local_timezone():
+    """Get the local timezone"""
+    return pytz.timezone('UTC')  # Default to UTC if local timezone can't be determined
+
+def convert_to_local_time(timestamps):
+    """Convert UTC timestamps to local timezone"""
+    local_tz = get_local_timezone()
+    return [ts.astimezone(local_tz) if ts.tzinfo else pytz.utc.localize(ts).astimezone(local_tz) 
+            for ts in timestamps]
 
 def create_response_time_chart(history):
     times = [record['timestamp'] for record in history]
+    # Convert timestamps to datetime objects if they're strings
+    times = [datetime.fromisoformat(t) if isinstance(t, str) else t for t in times]
+    # Convert to local timezone
+    times = convert_to_local_time(times)
+    
     response_times = [
         record['response_time'] if record['response_time'] >= 0 else None 
         for record in history
@@ -32,6 +48,11 @@ def create_response_time_chart(history):
 
 def create_status_chart(history):
     times = [record['timestamp'] for record in history]
+    # Convert timestamps to datetime objects if they're strings
+    times = [datetime.fromisoformat(t) if isinstance(t, str) else t for t in times]
+    # Convert to local timezone
+    times = convert_to_local_time(times)
+    
     status = [1 if record['status'] else 0 for record in history]
     
     fig = go.Figure()
@@ -59,6 +80,10 @@ def create_status_chart(history):
 
 def create_detailed_metrics_chart(history, device):
     times = [record['timestamp'] for record in history]
+    # Convert timestamps to datetime objects if they're strings
+    times = [datetime.fromisoformat(t) if isinstance(t, str) else t for t in times]
+    # Convert to local timezone
+    times = convert_to_local_time(times)
     
     fig = make_subplots(
         rows=2, cols=2,
@@ -156,6 +181,10 @@ def create_detailed_metrics_chart(history, device):
 
 def create_trend_chart(trends):
     times = [record['time_bucket'] for record in trends]
+    # Convert timestamps to datetime objects if they're strings
+    times = [datetime.fromisoformat(t) if isinstance(t, str) else t for t in times]
+    # Convert to local timezone
+    times = convert_to_local_time(times)
     
     fig = make_subplots(
         rows=2, cols=2,

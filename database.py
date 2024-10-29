@@ -1,5 +1,6 @@
 import sqlite3
 from datetime import datetime
+import pytz
 
 class Database:
     def __init__(self):
@@ -114,18 +115,22 @@ class Database:
                 float(jitter) > float(device['jitter_threshold'])):
                 violations.append('jitter')
 
+        # Get current UTC timestamp
+        current_time = datetime.now(pytz.UTC)
+        
         with self.conn:
             self.conn.execute(
                 """
                 INSERT INTO monitoring_history 
                 (device_id, response_time, status, min_rtt, max_rtt, 
-                avg_rtt, jitter, packet_loss, threshold_violations)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                avg_rtt, jitter, packet_loss, threshold_violations, timestamp)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (int(device_id), float(response_time), 1 if status else 0,
                 float(min_rtt), float(max_rtt), float(avg_rtt),
                 float(jitter), float(packet_loss),
-                ','.join(violations) if violations else None)
+                ','.join(violations) if violations else None,
+                current_time.strftime('%Y-%m-%d %H:%M:%S.%f'))
             )
 
     def get_device_history(self, device_id, limit=100):
@@ -154,6 +159,16 @@ class Database:
             # Ensure numeric fields are float
             for field in ['response_time', 'min_rtt', 'max_rtt', 'avg_rtt', 'jitter', 'packet_loss']:
                 record[field] = float(record[field])
+            try:
+                # Try parsing with microseconds
+                record['timestamp'] = datetime.strptime(
+                    record['timestamp'], '%Y-%m-%d %H:%M:%S.%f'
+                ).replace(tzinfo=pytz.UTC)
+            except ValueError:
+                # Fall back to parsing without microseconds
+                record['timestamp'] = datetime.strptime(
+                    record['timestamp'], '%Y-%m-%d %H:%M:%S'
+                ).replace(tzinfo=pytz.UTC)
             history.append(record)
         return history
 
@@ -175,4 +190,12 @@ class Database:
             """,
             (int(device_id), f'-{int(hours)} hours')
         )
-        return [dict(row) for row in cursor]
+        trends = []
+        for row in cursor:
+            trend = dict(row)
+            # Convert time_bucket string to datetime object with UTC timezone
+            trend['time_bucket'] = datetime.strptime(
+                trend['time_bucket'], '%Y-%m-%d %H:%M:%S'
+            ).replace(tzinfo=pytz.UTC)
+            trends.append(trend)
+        return trends
