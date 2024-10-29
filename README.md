@@ -7,6 +7,7 @@ A comprehensive network monitoring dashboard built with Streamlit to track and v
 - [Installation Process](#installation-process)
 - [Running the Application](#running-the-application)
 - [Troubleshooting](#troubleshooting)
+- [Scope and Limitations](#scope-and-limitations)
 
 ## VirtualBox Setup
 
@@ -199,3 +200,71 @@ pip list | grep streamlit
 which python3
 which streamlit
 ```
+
+
+## Scope and Limitations
+
+### Scope
+
+1. **Network Monitoring Capabilities**
+   - Real-time monitoring of network devices via ICMP (ping)
+   - Support for multiple device types (servers, switches, routers, workstations)
+   - Custom monitoring thresholds for different metrics
+   - Historical data tracking and trend analysis
+
+2. **Performance Metrics**
+   - Response time (RTT)
+   - Packet loss percentage
+   - Network jitter
+   - Device availability/uptime
+   - Moving averages and trend analysis
+
+3. **Device Management**
+   - Add, edit, and remove network devices
+   - Device categorization and tagging
+   - Custom threshold configuration per device
+   - Bulk device management
+
+4. **Data Visualization**
+   - Real-time performance graphs
+   - Historical trend charts
+   - Custom time range selection (6-72 hours)
+   - Interactive dashboard components
+
+5. **Reporting Features**
+   - CSV data export
+   - PDF report generation
+   - Customizable metrics display
+   - Threshold violation tracking
+
+### Limitations
+
+1. **Technical Constraints**
+   - Limited to ICMP-based monitoring (ping)
+   - No support for SNMP or other advanced protocols
+   - Maximum recommended devices: 100 per instance
+   - Data retention period: 30 days by default
+
+2. **Security Considerations**
+   - Basic authentication only
+   - No built-in encryption for stored data
+   - No role-based access control
+   - Limited to internal network monitoring
+
+3. **Performance Boundaries**
+   - Minimum polling interval: 60 seconds
+   - Maximum recommended concurrent devices: 100
+   - Chart refresh rate: 60 seconds
+   - Database size limit: 10GB
+
+4. **Monitoring Restrictions**
+   - No automated device discovery
+   - No support for IPv6 addresses
+   - Limited protocol support (ICMP only)
+   - No built-in alerting system
+
+5. **Deployment Constraints**
+   - Single instance deployment only
+   - No built-in clustering support
+   - Limited to Ubuntu Linux environments
+   - Requires persistent database storage
