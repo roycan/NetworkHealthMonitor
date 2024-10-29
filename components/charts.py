@@ -5,7 +5,9 @@ import pytz
 
 def get_local_timezone():
     """Get the local timezone"""
-    return pytz.timezone('UTC')  # Default to UTC if local timezone can't be determined
+    return pytz.timezone(
+        'Asia/Manila'
+    )  # Default to 'Asia/Manila' instead of 'UTC' if local timezone can't be determined
 
 def convert_to_local_time(timestamps):
     """Convert UTC timestamps to local timezone"""
